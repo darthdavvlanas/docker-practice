@@ -130,6 +130,60 @@ SQL запрос к БД на локальном ПК \
 SQL запрос к БД на ВМ в YC \
 ![Задача-4](./console-5.png)
 
+Bash-скрипт для клонирования репозитория и запуска проекта
+```
+#!/usr/bin/env bash
+#
+# run.sh — клонирует репозиторий и запускает compose.yaml
+#
+set -euo pipefail
+
+REPO_URL="https://github.com/darthdavvlanas/shvirtd-example-python.git"
+TARGET_DIR="/opt/shvirtd-example-python"
+
+# --- Проверка зависимостей ----------------------------------------------
+for cmd in git docker; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "[x] Не найдена команда: $cmd" >&2
+        exit 1
+    fi
+done
+
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE="docker-compose"
+else
+    echo "[x] Не найден docker compose / docker-compose" >&2
+    exit 1
+fi
+
+# --- Клонирование --------------------------------------------------------
+if [[ -d "$TARGET_DIR/.git" ]]; then
+    echo "[+] Каталог уже есть — обновляю репозиторий"
+    git -C "$TARGET_DIR" pull --ff-only
+else
+    echo "[+] Клонирую в $TARGET_DIR"
+    sudo mkdir -p "$(dirname "$TARGET_DIR")"
+    sudo git clone "$REPO_URL" "$TARGET_DIR"
+    sudo chown -R "$(id -u):$(id -g)" "$TARGET_DIR"
+fi
+
+cd "$TARGET_DIR"
+
+# --- Запуск --------------------------------------------------------------
+if [[ ! -f compose.yaml ]]; then
+    echo "[x] compose.yaml не найден в $TARGET_DIR" >&2
+    exit 1
+fi
+
+echo "[+] Запускаю: $COMPOSE -f compose.yaml up -d"
+$COMPOSE -f compose.yaml up -d
+
+echo "[+] Готово. Статус:"
+$COMPOSE -f compose.yaml ps
+```
+
 Выполнения docker ps -a через remote context \
 ![Задача-4](./console-6.png)
 
